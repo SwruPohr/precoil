@@ -1,14 +1,14 @@
 # Compile
 
 ```bash
-odin build src -out:out/main.exe
+odin build src -out:out/coil.exe
 ```
 
 
 # Run
 
 ```bash
-out/main
+out/coil
 ```
 
 # Build and run
