@@ -1,0 +1,21 @@
+using out;
+
+@main
+sayHello :: () -> u32
+proc() {
+	out::println("Hello," "World!") :else e :err 1;
+	:ok 0;
+}
+
+
+::
+:
+()
+->
+.
+*
+^
+[]
+{}
+&
+%

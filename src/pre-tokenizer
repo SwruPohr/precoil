@@ -1,0 +1,40 @@
+package lang
+
+Token :: struct {
+	kind: Token_Kind,
+	text: string,
+	col, row: int,
+}
+
+Token_Kind :: enum {
+	INVALID,
+
+	SPAN,
+
+	LPAREN,
+	RPAREN,
+	LBRACE,
+	RBRACE,
+	LBRACKET,
+	RBRACKET,
+
+	COMMA,
+	COLON,
+
+	PLUS,
+	MINUS,
+	STAR,
+	SLASH,
+
+
+
+	ARROW,
+	WALRUS,
+
+}
+
+tokenize :: proc(text: string) -> []Token {
+	tokens: [dynamic]Token
+
+	return tokens[:]
+}

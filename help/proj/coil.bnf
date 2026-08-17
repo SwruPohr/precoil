@@ -1,0 +1,6 @@
+
+Program ::= Command;
+
+Command ::= Return;
+
+Return  ::= ":ret" [";"]?
