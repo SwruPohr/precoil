@@ -2,6 +2,7 @@ package lang
 
 import "core:fmt"
 import "core:os"
+import "core:strings"
 
 Token :: struct {
 	kind: Token_Kind,
@@ -17,7 +18,7 @@ Token_Kind :: enum {
 	LIT_NUM,
 	LIT_STR,
 	LIT_CHR,
-	
+
 
 	BANG,
 	DOLLAR,
@@ -83,7 +84,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		}
 
 		// handle invalid characters
-		if expected_invalid(&t) {
+		if expect_invalid(&t) {
 			fmt.eprintfln("ERROR: could not tokenize symbol: '%c'(U+%04X)", peek(&t), peek(&t) )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -122,7 +123,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		}
 
 		// handle numeric literals
-		if expect_digit(&t) {
+		if expect_num(&t) {
 			fmt.eprintfln("TODO: NUMBER LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -136,34 +137,47 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 			continue outer
 		}
 
-		// handle identifiers
-		if is_ident_start(peek(&t)) {
-			token.kind = .IDENT
-			pot_end := t.pos
-
-			inner: for {
-				if is_ident(peek(&t)) do advance(&t)
-				else if is_space(peek(&t)) {
-					//pot_end = t.pos
-					break inner
-				}
-				else { break inner }
-			}
-
-			token.text = string(t.text[start:t.pos])
-			//fmt.eprintfln("\"%s\"", token.text)
-			append(&t.tokens, token)
-			continue outer
-		}
-
-
-		if token.kind == .INVALID {
-			fmt.eprintfln("ERROR: could not tokenize text: '%s'", t.text[start:t.pos+1])
+		// At this point, we've handled digits, punctuation, and whitespace in earlier branches.
+		// If we get here and it's not alphabetic, something impossible has happened.
+		// TODO: remove when unicode support added
+		if !is_alpha(peek(&t)) {
+			fmt.eprintfln("ERROR: impossible symbol: '%c'(U+%04X)", peek(&t), peek(&t) )
 			fmt.eprintfln("HINT: something has gone horribly wrong")
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
-		
+
+		// finally start to do identifiers
+		token.kind = .IDENT
+		words := make([dynamic]string)
+		word_start := t.pos
+
+		inner: for {
+			if expect_ident_num(&t) { continue inner }
+			if !expect_only(&t, ' ') { break inner }
+
+			append(&words, string(t.text[word_start:t.pos]))
+
+			for expect(&t, ' ') { }
+
+			if expect_num(&t) { 
+				fmt.eprintfln("ERROR: You may not start a word with numbers")
+				fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
+				return nil, false
+			}
+
+			word_start = t.pos
+
+		}
+
+		if word_start != t.pos {
+			append(&words, string(t.text[word_start:t.pos]))
+		}
+
+		token.text = strings.join(words[:], " ")
+		delete(words)
+		append(&t.tokens, token)
+
 	}
 
 	return t.tokens[:], true

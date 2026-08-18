@@ -29,18 +29,27 @@ expect :: proc(t: ^Tokenizer, char: u8) -> bool {
 	return true
 }
 
+expect_only :: proc(t: ^Tokenizer, char: u8) -> bool {
+	return peek(t) == char
+}
+
 expect_not :: proc(t: ^Tokenizer, char: u8) -> bool {
 	if peek(t) == char do return false
 	advance(t)
 	return true
 }
 
-expect_digit :: proc(t: ^Tokenizer) -> bool {
+expect_num :: proc(t: ^Tokenizer) -> bool {
 	if !is_num(peek(t)) do return false
 	advance(t)
 	return true
 }
 
+expect_ident_num :: proc(t: ^Tokenizer) -> bool {
+	if ! (is_num(peek(t)) || is_ident(peek(t))) do return false
+	advance(t)
+	return true
+}
 
 expect_newline :: proc(t: ^Tokenizer) -> bool {
 	if peek(t) != '\n' do return false
@@ -51,34 +60,15 @@ expect_newline :: proc(t: ^Tokenizer) -> bool {
 }
 
 
-expected_invalid :: proc(t: ^Tokenizer) -> bool {
+expect_invalid :: proc(t: ^Tokenizer) -> bool {
 	p := peek(t)
 
 	// Control characters
-	if p < 0x20 || p == 0x7F {
+	if is_invalid(p) {
 		return true
 	}
 
 	return false 
-
-	/* ONLY POSSIBLE AFTER EVERYTHING IS MADE UNICODE-FRIENDLY
-	// Line/paragraph separators
-	if p == 0x2028 || p == 0x2029 {
-		return true
-	}
-
-	// Zero-width characters
-	if p == 0x200B || p == 0x200C || p == 0x200D || p == 0xFEFF {
-		return true
-	}
-
-	// Bidirectional overrides
-	if p >= 0x202A && p <= 0x202E {
-		return true
-	}
-
-	return false
-	*/
 }
 
 
@@ -118,24 +108,31 @@ peek_simples :: proc(t: ^Tokenizer) -> Token_Kind {
 	}
 }
 
-is_newline :: proc(v: u8) -> bool {
-	return v == '\n'
-}
+is_invalid :: proc(v: u8) -> bool {
+	return (v <= ' ' || v == 0x7F)
 
-is_tab :: proc(v: u8) -> bool {
-	return v == '\t'
+	/* ONLY POSSIBLE AFTER EVERYTHING IS MADE UNICODE-FRIENDLY
+	// Line/paragraph separators
+	if p == 0x2028 || p == 0x2029 {
+		return true
+	}
+
+	// Zero-width characters
+	if p == 0x200B || p == 0x200C || p == 0x200D || p == 0xFEFF {
+		return true
+	}
+
+	// Bidirectional overrides
+	if p >= 0x202A && p <= 0x202E {
+		return true
+	}
+
+	return false
+	*/
 }
 
 is_space :: proc(v: u8) -> bool {
 	return v == ' '
-}
-
-is_lowercase_alpha :: proc(v: u8) -> bool {
-	return (v >= 'a' && v <= 'z') 
-}
-
-is_uppercase_alpha :: proc(v: u8) -> bool {
-	return (v >= 'A' && v <= 'Z') 
 }
 
 is_num :: proc(v: u8) -> bool {
@@ -143,17 +140,10 @@ is_num :: proc(v: u8) -> bool {
 }
 
 is_alpha :: proc(v: u8) -> bool {
-	return is_lowercase_alpha(v) || is_uppercase_alpha(v)
+	return (v >= 'a' && v <= 'z') || (v >= 'A' && v <= 'Z')
 }
 
-is_alphanum :: proc(v: u8) -> bool {
-	return is_alpha(v) || is_num(v)
-}
 
 is_ident :: proc(v: u8) -> bool {
-	return is_alphanum(v) || v == '_'
-}
-
-is_ident_start :: proc(v: u8) -> bool {
-	return is_alpha(v) || v == '_'
+	return is_alpha(v) || v >= 0x7F
 }
