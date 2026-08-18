@@ -4,54 +4,6 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 
-Token :: struct {
-	kind: Token_Kind,
-	text: Maybe(string),
-	col, row: int,
-}
-
-Token_Kind :: enum {
-	INVALID,
-
-	IDENT,
-
-	LIT_NUM,
-	LIT_STR,
-	LIT_CHR,
-
-
-	BANG,
-	DOLLAR,
-	PERCENT,
-	AMPERSAND,
-	LPAREN,
-	RPAREN,
-	ASTERISK,
-	PLUS,
-	COMMA,
-	MINUS,
-	PERIOD,
-	SLASH,
-	COLON,
-	SEMICOLON,
-	LT,
-	EQ,
-	GT,
-	QUESTION,
-	AT,
-	LBRACK,
-	BACKSLASH,
-	RBRACK,
-	CARET,
-	UNDERSCORE,
-	GRAVE,
-	LCURLY,
-	BAR,
-	RCURLY,
-	TILDE,
-
-}
-
 
 
 tokenize :: proc(text: []byte) -> ([]Token, bool) {
@@ -60,13 +12,15 @@ tokenize :: proc(text: []byte) -> ([]Token, bool) {
 
 pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 	t: Tokenizer
+
 	t.col = 1
 	t.row = 1
 	t.tokens = make([dynamic]Token, 0, 32)
 	t.text = text
 
 
-	outer: for peek(&t) != 0 {
+	outer: for {
+		token: Token
 
 		// handle spaces
 		for expect(&t, ' ') { }
@@ -82,6 +36,8 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 				else if !expect(&t, '\t') { continue outer }
 			}
 		}
+
+		if empty(&t) { break outer }
 
 		// handle invalid characters
 		if expect_invalid(&t) {
@@ -102,7 +58,6 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 			continue outer
 		}
 
-		token: Token
 		token.col = t.col
 		token.row = t.row
 		start := t.pos
@@ -123,7 +78,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		}
 
 		// handle numeric literals
-		if expect_num(&t) {
+		if is_num(peek(&t)) {
 			fmt.eprintfln("TODO: NUMBER LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -153,26 +108,20 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		word_start := t.pos
 
 		inner: for {
-			if expect_ident_num(&t) { continue inner }
-			if !expect_only(&t, ' ') { break inner }
+
+			for expect_ident_num(&t) { }
 
 			append(&words, string(t.text[word_start:t.pos]))
 
-			for expect(&t, ' ') { }
+			if expect_only(&t, ' ') {
 
-			if expect_num(&t) { 
-				fmt.eprintfln("ERROR: You may not start a word with numbers")
-				fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
-				return nil, false
+				for expect(&t, ' ') { }
+				word_start = t.pos
 			}
 
-			word_start = t.pos
-
+			if !expect_ident(&t) { break inner }
 		}
 
-		if word_start != t.pos {
-			append(&words, string(t.text[word_start:t.pos]))
-		}
 
 		token.text = strings.join(words[:], " ")
 		delete(words)
