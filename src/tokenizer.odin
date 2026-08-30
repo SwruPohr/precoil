@@ -1,84 +1,14 @@
 package lang
 
+import "local:cursor"
+
 Tokenizer :: struct {
-	pos: int,
-	col, row: int,
-	text: []byte,
+	using lined_cursor: cursor.LinedASCIICursor,
 	tokens: [dynamic]Token,
 }
 
-
-peek :: proc(t: ^Tokenizer, k: int = 0) -> u8 {
-	if t.pos + k >= len(t.text) do return 0
-	return t.text[t.pos + k]
-}
-
-empty :: proc(t: ^Tokenizer) -> bool {
-	return t.pos == len(t.text)
-}
-
-advance :: proc(t: ^Tokenizer, k: int = 1) {
-	t.pos += k
-	t.col += k
-}
-
-consume :: proc(t: ^Tokenizer) -> u8 {
-	advance(t)
-	return peek(t, -1)
-}
-
-expect :: proc(t: ^Tokenizer, char: u8) -> bool {
-	if peek(t) != char do return false
-	advance(t)
-	return true
-}
-
-expect_only :: proc(t: ^Tokenizer, char: u8) -> bool {
-	return peek(t) == char
-}
-
-expect_not :: proc(t: ^Tokenizer, char: u8) -> bool {
-	if peek(t) == char do return false
-	advance(t)
-	return true
-}
-
-expect_ident :: proc(t: ^Tokenizer) -> bool {
-	if !is_ident(peek(t)) do return false
-	advance(t)
-	return true
-}
-
-expect_ident_num :: proc(t: ^Tokenizer) -> bool {
-	if ! (is_num(peek(t)) || is_ident(peek(t))) do return false
-	advance(t)
-	return true
-}
-
-expect_newline :: proc(t: ^Tokenizer) -> bool {
-	if peek(t) != '\n' do return false
-	t.pos += 1
-	t.col = 1
-	t.row += 1
-	return true
-}
-
-
-expect_invalid :: proc(t: ^Tokenizer) -> bool {
-	p := peek(t)
-
-	// Control characters
-	if is_invalid(p) {
-		return true
-	}
-
-	return false 
-}
-
-
-
-peek_simples :: proc(t: ^Tokenizer) -> Token_Kind {
-	switch peek(t) {
+get_simples :: proc(char: u8) -> Token_Kind {
+	switch char {
 		case '!': return .BANG
 		case '$': return .DOLLAR
 		case '%': return .PERCENT

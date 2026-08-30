@@ -4,9 +4,8 @@ import "core:fmt"
 import "core:os"
 
 main :: proc() {
-	handle := "../in/stage.coil"
-	fondle := "../out/output.txt"
-
+	handle := "in/stage.coil"
+	fondle := "out/output.txt"
 	data, derr := os.read_entire_file(handle, context.allocator)
 	if derr != nil {
 		fmt.eprintfln("ERROR: could not open asset: %s", handle)
@@ -30,3 +29,5 @@ main :: proc() {
 	}
 
 }
+
+// odin run src -collection:local=src

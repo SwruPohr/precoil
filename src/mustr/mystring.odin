@@ -1,4 +1,4 @@
-package lang
+package mustr
 
 is_invalid :: proc(v: u8) -> bool {
 	return (v <= ' ' || v == 0x7F)

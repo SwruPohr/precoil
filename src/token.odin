@@ -3,8 +3,8 @@ package lang
 import "core:fmt"
 import "core:os"
 import "core:strings"
-
-
+import "local:cursor"
+import "local:mustr"
 
 tokenize :: proc(text: []byte) -> ([]Token, bool) {
 	return pre_tokenize(text)
@@ -23,38 +23,38 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		token: Token
 
 		// handle spaces
-		for expect(&t, ' ') { }
+		for cursor.expect(&t, ' ') { }
 
 		// handle newlines
-		if expect_newline(&t) {
+		if cursor.expect_newline(&t) {
 			for {
-				if expect(&t, ' ') {
+				if cursor.expect(&t, ' ') {
 					fmt.eprintfln("ERROR: You may not indent with spaces.")
 					fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 					return nil, false
 				}
-				else if !expect(&t, '\t') { continue outer }
+				else if !cursor.expect(&t, '\t') { continue outer }
 			}
 		}
 
-		if empty(&t) { break outer }
+		if cursor.empty(&t) { break outer }
 
 		// handle invalid characters
-		if expect_invalid(&t) {
-			fmt.eprintfln("ERROR: could not tokenize symbol: '%c'(U+%04X)", peek(&t), peek(&t) )
+		if cursor.expect_invalid(&t) {
+			fmt.eprintfln("ERROR: could not tokenize symbol: '%c'(U+%04X)", cursor.peek(&t), cursor.peek(&t) )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
-		if (peek(&t) >= 0x7F) {
+		if (cursor.peek(&t) >= 0x7F) {
 			fmt.eprintfln("TODO: UNICODE CHARACTERS NOT YET IMPLEMENTED")
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
 		// handle comments
-		if expect(&t, '#') {
-			for expect_not(&t, '\n') { }
+		if cursor.expect(&t, '#') {
+			for cursor.expect_not(&t, '\n') { }
 			continue outer
 		}
 
@@ -63,7 +63,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		start := t.pos
 
 		// handle character literals
-		if expect(&t, '\'') {
+		if cursor.expect(&t, '\'') {
 			fmt.eprintfln("TODO: CHAR LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -71,23 +71,23 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 
 
 		// handle string literals
-		if expect(&t, '"') {
+		if cursor.expect(&t, '"') {
 			fmt.eprintfln("TODO: STRING LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
 		// handle numeric literals
-		if is_num(peek(&t)) {
+		if mustr.is_num(cursor.peek(&t)) {
 			fmt.eprintfln("TODO: NUMBER LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
 		// handle simple tokens
-		token.kind = peek_simples(&t)
+		token.kind = get_simples(cursor.peek(&t))
 		if token.kind != .INVALID {
-			advance(&t)
+			cursor.advance(&t)
 			append(&t.tokens, token)
 			continue outer
 		}
@@ -95,8 +95,8 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		// At this point, we've handled digits, punctuation, and whitespace in earlier branches.
 		// If we get here and it's not alphabetic, something impossible has happened.
 		// TODO: remove when unicode support added
-		if !is_alpha(peek(&t)) {
-			fmt.eprintfln("ERROR: impossible symbol: '%c'(U+%04X)", peek(&t), peek(&t) )
+		if !mustr.is_alpha(cursor.peek(&t)) {
+			fmt.eprintfln("ERROR: impossible symbol: '%c'(U+%04X)", cursor.peek(&t), cursor.peek(&t) )
 			fmt.eprintfln("HINT: something has gone horribly wrong")
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -109,17 +109,17 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 
 		inner: for {
 
-			for expect_ident_num(&t) { }
+			for cursor.expect_ident_num(&t) { }
 
 			append(&words, string(t.text[word_start:t.pos]))
 
-			if expect_only(&t, ' ') {
+			if cursor.expect_only(&t, ' ') {
 
-				for expect(&t, ' ') { }
+				for cursor.expect(&t, ' ') { }
 				word_start = t.pos
 			}
 
-			if !expect_ident(&t) { break inner }
+			if !cursor.expect_ident(&t) { break inner }
 		}
 
 
