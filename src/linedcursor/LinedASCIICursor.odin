@@ -1,4 +1,4 @@
-package cursor
+package linedcursor
 
 import utf "core:unicode/utf8"
 import "local:mustr"
@@ -6,9 +6,8 @@ import "local:mustr"
 ASCIICursor :: struct {
 	text: []byte,
 	pos: int,
-
+	col, row: int,
 }
-
 
 peek :: proc(t: ^ASCIICursor) -> u8 {
 	if t.pos >= len(t.text) do return 0
@@ -21,6 +20,7 @@ empty :: proc(t: ^ASCIICursor) -> bool {
 
 advance :: proc(t: ^ASCIICursor) {
 	t.pos += 1
+	t.col += 1
 }
 
 consume :: proc(t: ^ASCIICursor) -> u8 {
@@ -57,13 +57,13 @@ expect_ident_num :: proc(t: ^ASCIICursor) -> bool {
 	return true
 }
 
-
-
-
-
-
-
-
+expect_newline :: proc(t: ^ASCIICursor) -> bool {
+	if peek(t) != '\n' do return false
+	t.pos += 1
+	t.col = 1
+	t.row += 1
+	return true
+}
 
 
 expect_invalid :: proc(t: ^ASCIICursor) -> bool {

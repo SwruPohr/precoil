@@ -1,10 +1,6 @@
 package lang
 
-Token :: struct {
-	kind: Token_Kind,
-	text: Maybe(string),
-	col, row: int,
-}
+import token "local:token"
 
 Token_Kind :: enum {
 	INVALID,
@@ -49,3 +45,5 @@ Token_Kind :: enum {
 
 }
 
+Token :: token.Token(Token_Kind)
+Tokenizer :: token.Tokenizer(Token_Kind)
