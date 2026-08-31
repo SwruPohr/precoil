@@ -39,3 +39,7 @@ is_alpha :: proc(v: u8) -> bool {
 is_ident :: proc(v: u8) -> bool {
 	return is_alpha(v) || v >= 0x7F
 }
+
+is_ident_or_num :: proc(v: u8) -> bool {
+	return is_ident(v) || is_num(v)
+}

@@ -14,7 +14,6 @@ main :: proc() {
 
 	tokens, tok := tokenize(data)
 	if !tok {
-		fmt.eprintfln("ERROR: could not tokenize data")
 		return
 	}
 	defer delete(tokens)

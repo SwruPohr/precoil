@@ -8,10 +8,6 @@ import mustr "local:mustr"
 import token "local:token"
 
 tokenize :: proc(text: []byte) -> ([]Token, bool) {
-	return pre_tokenize(text)
-}
-
-pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 	t: Tokenizer
 
 	t.col = 1
@@ -19,49 +15,86 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 	t.tokens = make([dynamic]Token, 0, 32)
 	t.text = text
 
-
 	outer: for {
 		token: Token
 
 		// handle spaces
-		for cursor.expect(&t, ' ') { }
+		for {
+			if cursor.empty(&t) {
+				break outer
+			}
+
+			if !cursor.expect(&t, ' ') {
+				break
+			}
+		}
+
 
 		// handle newlines
-		if cursor.expect_newline(&t) {
+		if cursor.line(&t) {
+			// perfect example of DONE vs ERR vs NEXT
 			for {
+				if cursor.empty(&t) {
+					break outer
+				}
+
 				if cursor.expect(&t, ' ') {
 					fmt.eprintfln("ERROR: You may not indent with spaces.")
 					fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 					return nil, false
 				}
-				else if !cursor.expect(&t, '\t') { continue outer }
+
+				if !cursor.expect(&t, '\t') { 
+					continue outer 
+				}
 			}
 		}
 
-		if cursor.empty(&t) { break outer }
+		if cursor.empty(&t) {
+			break outer
+		}
 
-		// handle invalid characters
-		if cursor.expect_invalid(&t) {
+		if cursor.expect(&t, '\r') {
+			fmt.eprintfln("ERROR: could not tokenize Carriage Return (CR, \\r)" )
+			fmt.eprintfln("... at line #", t.row)
+			return nil, false
+		}
+
+		// handle other invalid characters
+		if cursor.hope(&t, mustr.is_invalid) {
 			fmt.eprintfln("ERROR: could not tokenize symbol: '%c'(U+%04X)", cursor.peek(&t), cursor.peek(&t) )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
 		if (cursor.peek(&t) >= 0x7F) {
-			fmt.eprintfln("TODO: UNICODE CHARACTERS NOT YET IMPLEMENTED")
+			fmt.eprintfln("TODO: NON-ASCII CHARACTERS NOT YET IMPLEMENTED")
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
 		}
 
 		// handle comments
 		if cursor.expect(&t, '#') {
-			for cursor.expect_not(&t, '\n') { }
+			for {
+				if cursor.empty(&t) {
+					break outer
+				}
+				// we must handle these lines later in the line handler
+				if cursor.hope(&t, '\n') {
+					continue outer
+				}
+				cursor.advance(&t)
+			}
 			continue outer
 		}
 
 		token.col = t.col
 		token.row = t.row
 		start := t.pos
+
+		if cursor.empty(&t) {
+			break outer
+		}
 
 		// handle character literals
 		if cursor.expect(&t, '\'') {
@@ -70,6 +103,13 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 			return nil, false
 		}
 
+		// handle raw literals
+		if cursor.expect(&t, '`') {
+			// remember, that if the last token was a "$", this is not a raw string but a raw identifier.
+			fmt.eprintfln("TODO: RAW LITERAL NOT YET IMPLEMENTED" )
+			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
+			return nil, false
+		}
 
 		// handle string literals
 		if cursor.expect(&t, '"') {
@@ -79,7 +119,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		}
 
 		// handle numeric literals
-		if mustr.is_num(cursor.peek(&t)) {
+		if cursor.hope(&t, mustr.is_num) {
 			fmt.eprintfln("TODO: NUMBER LITERAL NOT YET IMPLEMENTED" )
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
 			return nil, false
@@ -96,7 +136,7 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		// At this point, we've handled digits, punctuation, and whitespace in earlier branches.
 		// If we get here and it's not alphabetic, something impossible has happened.
 		// TODO: remove when unicode support added
-		if !mustr.is_alpha(cursor.peek(&t)) {
+		if !cursor.hope(&t, mustr.is_alpha) {
 			fmt.eprintfln("ERROR: impossible symbol: '%c'(U+%04X)", cursor.peek(&t), cursor.peek(&t) )
 			fmt.eprintfln("HINT: something has gone horribly wrong")
 			fmt.eprintfln("... at r, c = %i, %i", t.row, t.col)
@@ -109,18 +149,40 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 		word_start := t.pos
 
 		inner: for {
-
-			for cursor.expect_ident_num(&t) { }
+			for {
+				if cursor.empty(&t) {
+					break inner
+				}
+				if !cursor.expect(&t, mustr.is_ident_or_num) {
+					break
+				}
+			}
 
 			append(&words, string(t.text[word_start:t.pos]))
 
-			if cursor.expect_only(&t, ' ') {
+			if cursor.empty(&t) {
+				break inner
+			}
 
-				for cursor.expect(&t, ' ') { }
+			if cursor.hope(&t, ' ') {
+				for {
+					if cursor.empty(&t) {
+						break inner
+					}
+					if !cursor.expect(&t, ' ') {
+						break
+					}
+				}
 				word_start = t.pos
 			}
 
-			if !cursor.expect_ident(&t) { break inner }
+			if cursor.empty(&t) {
+				break inner
+			}
+
+			if !cursor.expect(&t, mustr.is_ident) {
+				break inner
+			}
 		}
 
 
@@ -131,41 +193,4 @@ pre_tokenize :: proc(text: []byte) -> ([]Token, bool) {
 	}
 
 	return t.tokens[:], true
-}
-
-
-
-get_simples :: proc(char: u8) -> Token_Kind {
-	switch char {
-		case '!': return .BANG
-		case '$': return .DOLLAR
-		case '%': return .PERCENT
-		case '&': return .AMPERSAND
-		case '(': return .LPAREN
-		case ')': return .RPAREN
-		case '*': return .ASTERISK
-		case '+': return .PLUS
-		case ',': return .COMMA
-		case '-': return .MINUS
-		case '.': return .PERIOD
-		case '/': return .SLASH
-		case ':': return .COLON
-		case ';': return .SEMICOLON
-		case '<': return .LT
-		case '=': return .EQ
-		case '>': return .GT
-		case '?': return .QUESTION
-		case '@': return .AT
-		case '[': return .LBRACK
-		case '\\':return .BACKSLASH
-		case ']': return .RBRACK
-		case '^': return .CARET
-		case '_': return .UNDERSCORE
-		case '`': return .GRAVE
-		case '{': return .LCURLY
-		case '|': return .BAR
-		case '}': return .RCURLY
-		case '~': return .TILDE
-		case    : return .INVALID
-	}
 }
